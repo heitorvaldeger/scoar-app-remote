@@ -61,18 +61,6 @@ void streamTimeoutCallback(bool timeout) {
     Serial.printf("error code: %d, reason: %s\n\n", stream.httpCode(), stream.errorReason().c_str());
 }
 
-decode_type_t getProtocol (int protocolId) {
-  switch (protocolId)
-  {
-    case 24:
-      return decode_type_t::GREE;
-    case 10:
-      return decode_type_t::LG;
-    default:
-      return decode_type_t::UNKNOWN;
-  }
-}
-
 void setup() {
   Serial.begin(9600);
   
