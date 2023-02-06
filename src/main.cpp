@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include "time.h"
 
 // Firebase ESP32 Project
 #include <FirebaseESP32.h>
@@ -11,16 +12,32 @@
 #include <IRutils.h>
 #include <IRac.h>
 
+// GPIO 2
+#define LED 2
+
 //Define Firebase Data object
 FirebaseData fbdo;
 FirebaseData stream;
 
 FirebaseConfig config;
 
-String childPath[2] = {"/temp", "/status"};
+String childPath[2] = {"/temperature", "/status"};
 
-const int kIrLed = 12;
+const int kIrLed = 23;
 IRac ac(kIrLed);
+
+unsigned long epochTime;
+const char* ntpServer = "pool.ntp.org";
+
+unsigned long getTime() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return(0);
+  }
+  time(&now);
+  return now;
+}
 
 void streamCallback(MultiPathStreamData stream) {
   size_t numChild = sizeof(childPath) / sizeof(childPath[0]);
@@ -41,7 +58,7 @@ void streamCallback(MultiPathStreamData stream) {
         Serial.println(status);
       }
 
-      if (path == "/temp") {
+      if (path == "/temperature") {
         String temp = stream.value.c_str();
         ac.next.degrees = temp.toInt();
 
@@ -51,6 +68,8 @@ void streamCallback(MultiPathStreamData stream) {
       ac.sendAc();
     }
   }
+
+  Firebase.setStringAsync(fbdo, SINC_TEMP, getTime());
 }
 
 void streamTimeoutCallback(bool timeout) {
@@ -64,12 +83,18 @@ void streamTimeoutCallback(bool timeout) {
 void setup() {
   Serial.begin(9600);
   
+  // Set pin mode
+  pinMode(LED, OUTPUT);
+
   // WiFi Configuration
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.println("Connecting to Wi-Fi...");
 
     uint32_t notConnectedCounter = 0;
     while (WiFi.status() != WL_CONNECTED) {
+      digitalWrite(LED,HIGH);
+      delay(1000);
+      digitalWrite(LED,LOW);
       delay(1000);
       Serial.print(".");
       notConnectedCounter++;
@@ -78,6 +103,8 @@ void setup() {
           ESP.restart();
       }
     }
+
+    digitalWrite(LED,HIGH);
 
     Serial.println("ESP32 connected! :)");
   /////////////////////////////////////////
@@ -108,6 +135,8 @@ void setup() {
     ac.next.mode = stdAc::opmode_t::kCool;
     ac.next.light = true;
     ac.next.power = false;
+
+    configTime(0, 0, ntpServer);
   ///////////////////////////////////////
 }
 
