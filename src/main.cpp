@@ -29,6 +29,9 @@ IRac ac(kIrLed);
 unsigned long epochTime;
 const char* ntpServer = "pool.ntp.org";
 
+unsigned long previousMillis = 0;
+const long interval = 60000;
+
 unsigned long getTime() {
   time_t now;
   struct tm timeinfo;
@@ -69,7 +72,7 @@ void streamCallback(MultiPathStreamData stream) {
     }
   }
 
-  Firebase.setStringAsync(fbdo, SINC_TEMP, getTime());
+  // Firebase.setStringAsync(fbdo, SINC_TEMP, getTime());
 }
 
 void streamTimeoutCallback(bool timeout) {
@@ -117,6 +120,13 @@ void setup() {
     Firebase.begin(DATABASE_URL, API_KEY);
     Firebase.reconnectWiFi(true);
 
+    while (!Firebase.ready()) {
+      delay(1000);
+      Serial.println("Connecting to Firebase Realtime Database...");
+    }
+
+    Serial.println("Connected to Firebase Realtime Database!");
+
     if(!Firebase.getInt(fbdo, String(PARENT_PATH) + "/protocol"))
       Serial.println(fbdo.errorReason().c_str());
     
@@ -141,5 +151,12 @@ void setup() {
 }
 
 void loop() {
-  
+    unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    // Save the data to Firebase Realtime Database
+    Firebase.setStringAsync(fbdo, SINC_TEMP, getTime());
+  }
 }
